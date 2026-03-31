@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostBoard — All Posts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #0d0d0f;
+            --surface:   #141418;
+            --card:      #1a1a20;
+            --border:    rgba(255,255,255,0.07);
+            --accent:    #e8c46a;
+            --accent2:   #f0856a;
+            --text:      #eeeef0;
+            --muted:     #6b6b78;
+            --danger:    #e05c5c;
+            --radius:    14px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Noise texture overlay ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        /* ── Header ── */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(13,13,15,0.85);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 clamp(1.5rem, 5vw, 4rem);
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo span { font-style: italic; }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .post-count {
+            font-size: 0.78rem;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .btn-new {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.5rem 1.1rem;
+            background: var(--accent);
+            color: #0d0d0f;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            font-size: 0.85rem;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            box-shadow: 0 0 0 0 rgba(232,196,106,0.4);
+        }
+
+        .btn-new:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(232,196,106,0.35);
+            background: #f0d080;
+        }
+
+        .btn-new svg { width: 15px; height: 15px; }
+
+        /* ── Main layout ── */
+        main {
+            position: relative;
+            z-index: 1;
+            max-width: 860px;
+            margin: 0 auto;
+            padding: clamp(2rem, 5vw, 4rem) clamp(1.2rem, 4vw, 2rem) 6rem;
+        }
+
+        /* ── Section title ── */
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 900;
+            line-height: 1.05;
+            margin-bottom: 0.4rem;
+            letter-spacing: -0.03em;
+        }
+
+        .section-title em {
+            font-style: italic;
+            color: var(--accent);
+        }
+
+        .section-sub {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 2.5rem;
+            font-weight: 300;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            width: 48px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 2px;
+            margin-bottom: 2.5rem;
+        }
+
+        /* ── Post card ── */
+        .posts-list { display: flex; flex-direction: column; gap: 1.1rem; }
+
+        .post {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem 1.7rem;
+            display: grid;
+            grid-template-rows: auto auto auto;
+            gap: 0.7rem;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+            animation: slideUp 0.4s ease both;
+        }
+
+        .post::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--accent), var(--accent2));
+            opacity: 0;
+            transition: opacity 0.22s ease;
+        }
+
+        .post:hover {
+            border-color: rgba(232,196,106,0.25);
+            transform: translateX(4px);
+            box-shadow: -6px 0 32px rgba(232,196,106,0.06);
+        }
+
+        .post:hover::before { opacity: 1; }
+
+        /* staggered entrance */
+        .post:nth-child(1) { animation-delay: 0.05s; }
+        .post:nth-child(2) { animation-delay: 0.10s; }
+        .post:nth-child(3) { animation-delay: 0.15s; }
+        .post:nth-child(4) { animation-delay: 0.20s; }
+        .post:nth-child(5) { animation-delay: 0.25s; }
+        .post:nth-child(n+6) { animation-delay: 0.30s; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Post header row ── */
+        .post-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .username {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 0.01em;
+        }
+
+        .username::before {
+            content: '';
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: grid;
+            place-items: center;
+            font-size: 0.65rem;
+            color: #0d0d0f;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* ── Post content ── */
+        .content {
+            font-size: 1.02rem;
+            font-weight: 400;
+            color: var(--text);
+            line-height: 1.6;
+            padding-right: 1rem;
+        }
+
+        /* ── Actions row ── */
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            padding-top: 0.4rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.38rem 0.9rem;
+            border-radius: 999px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.17s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+        .btn-detail {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .btn-detail:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .btn-edit {
+            background: rgba(232,196,106,0.1);
+            color: var(--accent);
+            border-color: rgba(232,196,106,0.2);
+        }
+
+        .btn-edit:hover {
+            background: rgba(232,196,106,0.2);
+            border-color: rgba(232,196,106,0.35);
+        }
+
+        .btn-delete {
+            background: rgba(224,92,92,0.08);
+            color: var(--danger);
+            border-color: rgba(224,92,92,0.18);
+        }
+
+        .btn-delete:hover {
+            background: rgba(224,92,92,0.18);
+            border-color: rgba(224,92,92,0.35);
+        }
+
+        /* remove default form styling */
+        .delete-form { display: inline; }
+        .delete-form button {
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 5rem 2rem;
+            color: var(--muted);
+            animation: slideUp 0.4s ease both;
+        }
+
+        .empty-state svg {
+            width: 52px; height: 52px;
+            margin-bottom: 1.2rem;
+            opacity: 0.3;
+        }
+
+        .empty-state p { font-size: 1rem; margin-bottom: 1.4rem; }
+
+        /* ── Ambient glow ── */
+        .glow {
+            position: fixed;
+            width: 500px; height: 500px;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-1 {
+            background: rgba(232,196,106,0.06);
+            top: -180px; right: -150px;
+        }
+
+        .glow-2 {
+            background: rgba(240,133,106,0.05);
+            bottom: -200px; left: -180px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 560px) {
+            .post { padding: 1.2rem 1.1rem; }
+            .content { font-size: 0.95rem; }
+            .section-title { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <!-- ── Header ── -->
+    <header>
+        <div class="logo">Post<span>Board</span></div>
+        <div class="header-meta">
+            <span class="post-count" id="postCount"></span>
+            <a href="http://localhost:8080/posts/new" class="btn-new">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Post
+            </a>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <main>
+        <h1 class="section-title">All <em>Posts</em></h1>
+        <p class="section-sub">Browse and manage all community posts below.</p>
+        <div class="divider"></div>
+
+        <div class="posts-list" id="postsList">
+
+            <% if(posts && posts.length > 0) { %>
+                <% for(post of posts){ %>
+                <div class="post">
+                    <div class="post-header">
+                        <span class="username">@<%= post.username %></span>
+                    </div>
+                    <p class="content"><%= post.content %></p>
+                    <div class="actions">
+                        <a href="http://localhost:8080/posts/<%=post.id%>" class="btn btn-detail">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            View
+                        </a>
+                        <a href="http://localhost:8080/posts/<%=post.id%>/edit" class="btn btn-edit">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                        </a>
+                        <form class="delete-form" method="post" action="/posts/<%= post.id %>?_method=DELETE">
+                            <button type="submit" class="btn btn-delete">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <% } %>
+            <% } else { %>
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                    <p>No posts yet. Be the first to share something!</p>
+                    <a href="http://localhost:8080/posts/new" class="btn-new">Create First Post</a>
+                </div>
+            <% } %>
+
+        </div>
+    </main>
+
+    <script>
+        // Post count badge
+        const posts = document.querySelectorAll('.post');
+        const countEl = document.getElementById('postCount');
+        if (countEl && posts.length > 0) {
+            countEl.textContent = posts.length + ' post' + (posts.length !== 1 ? 's' : '');
+        }
+
+        // Avatar initials inside ::before pseudo — inject via data attr + JS workaround
+        document.querySelectorAll('.username').forEach(el => {
+            const name = el.textContent.replace('@', '').trim();
+            el.style.setProperty('--initial', `"${name.charAt(0).toUpperCase()}"`);
+        });
+
+        // Delete confirmation
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const confirmed = confirm('Delete this post permanently?');
+                if (!confirmed) e.preventDefault();
+            });
+        });
+    </script>
+</body>
+</html>
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index page</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Quora Posts</h1>
+
+    <% for(post of posts){ %>
+        <div class="post">
+            <h3 class="user">@<%= post.username %></h3>
+            <h4 class="content"><%= post.content %></h4>
+            <br>
+            <a href="http://localhost:8080/posts/<%=post.id%>">See in Detail</a>
+            <a href="http://localhost:8080/posts/<%=post.id%>/edit">Edit</a>
+            <form method="post" action="/posts/<%= post.id %>?_method=DELETE">
+                <button>Delete Post</button>
+            </form>
+            
+        </div>
+        
+    <% } %>
+    
+    <br><br>
+    <a href="http://localhost:8080/posts/new">Create New Post</a>
+</body>
+</html> -->
